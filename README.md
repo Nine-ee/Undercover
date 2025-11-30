@@ -61,7 +61,7 @@ python frontend.py
 6. 测试：
 test_client.py要把`BASE_URL`改成主持方的ip地址。自己测试的时候就是填入后端日志里的局域网访问后面的地址。
 ```bash
-python test_client.py
+python interactive_client.py
 ```
 
 ## 测试流程
