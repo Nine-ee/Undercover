@@ -200,6 +200,7 @@ def process_voting():
     if not _require_admin():
         return _admin_forbidden_response()
     with game_lock:
+        # 处理投票前，先检测未提交的组并自动记录异常
         result = game.process_voting_result()
         if 'error' in result:
             return make_response(result, 400, result.get('error', '投票处理失败'))
@@ -217,15 +218,29 @@ def get_game_state():
     if not _require_admin():
         return _admin_forbidden_response()
     with game_lock:
+        # 获取状态时自动检测未提交的组
+        missing_reports = game.detect_missing_submissions()
         state = game.get_game_state()
+        if missing_reports:
+            # 如果有新的异常记录，广播状态更新
+            socketio.start_background_task(broadcast_game_state)
         return make_response(state)
 
 
 @app.route('/api/status', methods=['GET'])
 def public_status():
     """游戏方公共状态接口"""
+<<<<<<< HEAD
     group_name = request.args.get('group_name', '').strip()
+=======
+    # 可选的组名参数，用于更新活跃时间
+    group_name = request.args.get('group_name', '').strip()
+    
+>>>>>>> aa928af3e7dbc038124b2bb44cb54c293a504b68
     with game_lock:
+        # 如果提供了组名，更新活跃时间
+        if group_name:
+            game.update_activity(group_name)
         status = game.get_public_status()
         # 添加是否为淘汰组的信息
         if group_name:
@@ -295,27 +310,6 @@ def reset_game():
         socketio.start_background_task(broadcast_status)
         socketio.start_background_task(broadcast_game_state)
         return make_response({}, 200, '游戏已重置')
-
-
-@app.route('/api/report', methods=['POST'])
-def report_issue():
-    """异常上报接口（游戏方调用）"""
-    data = request.json or {}
-    group_name = data.get('group_name') or data.get('group_id', '')
-    group_name = group_name.strip() if isinstance(group_name, str) else ''
-    report_type = data.get('type', 'general').strip() or 'general'
-    detail = data.get('detail', '').strip()
-
-    if not detail:
-        return make_response({}, 400, 'detail不能为空')
-
-    with game_lock:
-        report_entry = game.add_report(group_name, report_type, detail)
-
-    return make_response({
-        'ticket': report_entry['ticket'],
-        'recorded_at': report_entry['time']
-    }, 200, '异常已记录')
 
 
 @app.route('/api/groups', methods=['GET'])
