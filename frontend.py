@@ -318,12 +318,43 @@ HTML_TEMPLATE = """
             background: #f8d7da;
             color: #721c24;
         }
+        .statistics {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #9c27b0;
+        }
+        .stat-value {
+            font-size: 1.5em;
+            color: #9c27b0;
+            font-weight: bold;
+        }
+        .undercover-history {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f3e5f5;
+            border-radius: 5px;
+        }
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 3px 0;
+            border-bottom: 1px solid #e1bee7;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🎮 谁是卧底 - 主持方平台</h1>
-        
+
         <!-- 游戏控制区域 -->
         <div class="section">
             <h2>游戏控制</h2>
@@ -340,7 +371,7 @@ HTML_TEMPLATE = """
             <button onclick="processVoting()">处理投票结果</button>
             <button onclick="resetGame()">重置游戏</button>
         </div>
-        
+
         <!-- 游戏状态 -->
         <div class="section">
             <h2>游戏状态</h2>
@@ -360,19 +391,26 @@ HTML_TEMPLATE = """
                 <div class="speaking-order" id="speaking-order"></div>
             </div>
         </div>
-        
+
+        <!-- 游戏统计 -->
+        <div class="section">
+            <h2>游戏统计</h2>
+            <div class="statistics" id="statistics"></div>
+            <div class="undercover-history" id="undercover-history"></div>
+        </div>
+
         <!-- 注册的组 -->
         <div class="section">
             <h2>已注册的组</h2>
             <div class="groups-list" id="groups-list"></div>
         </div>
-        
+
         <!-- 描述展示 -->
         <div class="section">
             <h2>当前回合描述</h2>
             <div class="descriptions" id="descriptions"></div>
         </div>
-        
+
         <!-- 投票结果 -->
         <div class="section">
             <h2>投票结果</h2>
@@ -384,56 +422,57 @@ HTML_TEMPLATE = """
             <h2>异常上报</h2>
             <div class="reports" id="reports"></div>
         </div>
-        
+
         <!-- 得分 -->
         <div class="section">
             <h2>得分</h2>
             <div class="scores" id="scores"></div>
         </div>
     </div>
-    
+
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         // WebSocket 连接
         const socket = io('http://127.0.0.1:5000');
-        
+
         // 连接成功
         socket.on('connect', function() {
             console.log('WebSocket 已连接');
         });
-        
+
         // 接收状态更新推送
         socket.on('status_update', function(data) {
             console.log('收到状态推送:', data);
             updateSpeakerPanel(data);
         });
-        
+
         // 接收完整游戏状态推送
         socket.on('game_state_update', function(data) {
             console.log('收到游戏状态推送:', data);
             updateStatus(data);
+            updateStatistics(data);
             updateGroups(data);
             updateDescriptions(data);
             updateReports(data);
             updateScores(data);
         });
-        
+
         // 接收投票结果推送
         socket.on('vote_result', function(data) {
             console.log('收到投票结果推送:', data);
             updateVoteResult(data);
         });
-        
+
         // 断开连接时的处理
         socket.on('disconnect', function() {
             console.log('WebSocket 已断开，将使用轮询');
         });
-        
+
         // 本地倒计时变量
         let localSpeakerRemaining = null;
         let localPhaseRemaining = null;
         let currentStatus = null;
-        
+
         // 本地倒计时（每秒更新）
         setInterval(function() {
             if (localSpeakerRemaining !== null && localSpeakerRemaining > 0) {
@@ -444,7 +483,7 @@ HTML_TEMPLATE = """
                 localPhaseRemaining--;
             }
         }, 1000);
-        
+
         function updateCountdownDisplay() {
             const countdown = document.getElementById('speaker-countdown');
             if (countdown && localSpeakerRemaining !== null) {
@@ -456,7 +495,7 @@ HTML_TEMPLATE = """
                 }
             }
         }
-        
+
         // 备用轮询（WebSocket 断开时使用）
         setInterval(function() {
             if (!socket.connected) {
@@ -464,10 +503,10 @@ HTML_TEMPLATE = """
                 updateSpeakerStatusFallback();
             }
         }, 2000);
-        
+
         // 初始加载
         updateGameState();
-        
+
         function updateSpeakerStatusFallback() {
             fetch('/api/public/status')
                 .then(response => response.json())
@@ -478,23 +517,23 @@ HTML_TEMPLATE = """
                 })
                 .catch(error => console.error('Error:', error));
         }
-        
+
         function updateSpeakerPanel(data) {
             const panel = document.getElementById('speaker-panel');
             const speakerName = document.getElementById('current-speaker-name');
             const countdown = document.getElementById('speaker-countdown');
             const orderDiv = document.getElementById('speaking-order');
-            
+
             // 保存当前状态
             currentStatus = data.status;
-            
+
             if (data.status === 'describing') {
                 panel.style.display = 'block';
-                
+
                 // 当前发言者
                 const current = data.current_speaker || '---';
                 speakerName.textContent = current;
-                
+
                 // 更新本地倒计时（从服务器同步）
                 if (data.speaker_remaining_seconds !== null && data.speaker_remaining_seconds !== undefined) {
                     localSpeakerRemaining = data.speaker_remaining_seconds;
@@ -502,21 +541,21 @@ HTML_TEMPLATE = """
                 if (data.remaining_seconds !== null && data.remaining_seconds !== undefined) {
                     localPhaseRemaining = data.remaining_seconds;
                 }
-                
+
                 // 显示倒计时
                 updateCountdownDisplay();
-                
+
                 // 发言顺序
                 const order = data.describe_order || [];
                 const currentIdx = data.current_speaker_index || 0;
                 const eliminated = data.eliminated_groups || [];
-                
+
                 let orderHtml = '';
                 for (let i = 0; i < order.length; i++) {
                     const name = order[i];
                     let badgeClass = 'waiting';
                     let icon = '⬜';
-                    
+
                     if (eliminated.includes(name)) {
                         badgeClass = 'eliminated';
                         icon = '❌';
@@ -527,26 +566,26 @@ HTML_TEMPLATE = """
                         badgeClass = 'current';
                         icon = '🎤';
                     }
-                    
+
                     orderHtml += `<div class="speaker-badge ${badgeClass}">${icon} ${name}</div>`;
                 }
                 orderDiv.innerHTML = orderHtml;
-                
+
             } else if (data.status === 'voting') {
                 panel.style.display = 'block';
-                
+
                 // 显示投票进度
                 const votedGroups = data.voted_groups || [];
                 const activeGroups = data.active_groups || [];
                 speakerName.textContent = `🗳️ 投票中 (${votedGroups.length}/${activeGroups.length})`;
-                
+
                 // 更新本地倒计时
                 if (data.remaining_seconds !== null && data.remaining_seconds !== undefined) {
                     localSpeakerRemaining = data.remaining_seconds;
                     localPhaseRemaining = data.remaining_seconds;
                 }
                 updateCountdownDisplay();
-                
+
                 // 显示投票状态：谁已投票，谁未投票
                 const order = data.describe_order || [];
                 const eliminated = data.eliminated_groups || [];
@@ -561,7 +600,7 @@ HTML_TEMPLATE = """
                     }
                 }
                 orderDiv.innerHTML = orderHtml;
-                
+
             } else if (data.status === 'round_end' || data.status === 'game_end') {
                 // 回合结束或游戏结束，停止倒计时并隐藏面板
                 panel.style.display = 'none';
@@ -573,7 +612,7 @@ HTML_TEMPLATE = """
                 localPhaseRemaining = null;
             }
         }
-        
+
         function updateGameState() {
             fetch('/api/game/state')
                 .then(response => response.json())
@@ -581,6 +620,7 @@ HTML_TEMPLATE = """
                     if (resp && resp.code === 200) {
                         const data = resp.data || {};
                         updateStatus(data);
+                        updateStatistics(data);
                         updateGroups(data);
                         updateDescriptions(data);
                         updateReports(data);
@@ -591,7 +631,7 @@ HTML_TEMPLATE = """
                 })
                 .catch(error => console.error('Error:', error));
         }
-        
+
         function updateStatus(data) {
             const statusDiv = document.getElementById('game-status');
             const statusMap = {
@@ -603,36 +643,37 @@ HTML_TEMPLATE = """
                 'round_end': '回合结束',
                 'game_end': '游戏结束'
             };
-            
+
             // 获取发言顺序和当前发言人
             let speakerInfo = '';
             if (data.describe_order && data.describe_order.length > 0) {
                 speakerInfo = `<div class="status-item">发言顺序：${data.describe_order.join(' → ')}</div>`;
             }
-            
+
             // 当前发言者
             let currentSpeakerInfo = '';
             if (data.status === 'describing' && data.current_speaker) {
                 currentSpeakerInfo = `<div class="status-item" style="color: #ff9800; font-weight: bold;">🎤 当前发言：${data.current_speaker}</div>`;
             }
-            
+
             // 已发言的组
             let describedInfo = '';
             if (data.described_groups && data.described_groups.length > 0) {
                 describedInfo = `<div class="status-item" style="color: #4caf50;">✅ 已发言：${data.described_groups.join(', ')}</div>`;
             }
-            
+
             // 已投票的组
             let votedInfo = '';
             if (data.status === 'voting' && data.voted_groups && data.voted_groups.length > 0) {
                 const activeCount = data.describe_order ? data.describe_order.filter(g => !data.eliminated_groups?.includes(g)).length : 0;
                 votedInfo = `<div class="status-item" style="color: #2196f3;">🗳️ 已投票：${data.voted_groups.join(', ')} (${data.voted_groups.length}/${activeCount})</div>`;
             }
-            
+
             statusDiv.innerHTML = `
                 <div class="status-item">状态：${statusMap[data.status] || data.status}</div>
                 <div class="status-item">当前回合：${data.current_round || 0}</div>
                 <div class="status-item">已注册组数：${Object.keys(data.groups || {}).length}</div>
+                <div class="status-item">游戏次数：${data.game_counter || 0}</div>
                 ${data.undercover_group ? `<div class="status-item">卧底组：${data.undercover_group}</div>` : ''}
                 ${speakerInfo}
                 ${currentSpeakerInfo}
@@ -640,29 +681,97 @@ HTML_TEMPLATE = """
                 ${votedInfo}
             `;
         }
-        
+
+        function updateStatistics(data) {
+            const statisticsDiv = document.getElementById('statistics');
+            const historyDiv = document.getElementById('undercover-history');
+
+            // 游戏统计
+            let statsHtml = '';
+            statsHtml += `
+                <div class="stat-card">
+                    <div>🎮 游戏次数</div>
+                    <div class="stat-value">${data.game_counter || 0}</div>
+                </div>
+            `;
+
+            if (data.groups) {
+                const groupCount = Object.keys(data.groups).length;
+                statsHtml += `
+                    <div class="stat-card">
+                        <div>👥 注册组数</div>
+                        <div class="stat-value">${groupCount}</div>
+                    </div>
+                `;
+
+                const activeGroups = Object.values(data.groups).filter(g => !g.eliminated).length;
+                statsHtml += `
+                    <div class="stat-card">
+                        <div>🟢 活跃组数</div>
+                        <div class="stat-value">${activeGroups}</div>
+                    </div>
+                `;
+
+                const eliminatedGroups = Object.values(data.groups).filter(g => g.eliminated).length;
+                statsHtml += `
+                    <div class="stat-card">
+                        <div>🔴 淘汰组数</div>
+                        <div class="stat-value">${eliminatedGroups}</div>
+                    </div>
+                `;
+            }
+
+            statisticsDiv.innerHTML = statsHtml;
+
+            // 卧底历史
+            if (data.undercover_history && Object.keys(data.undercover_history).length > 0) {
+                let historyHtml = '<div style="margin-bottom: 10px; font-weight: bold;">👤 卧底历史：</div>';
+
+                // 按卧底次数排序
+                const sortedHistory = Object.entries(data.undercover_history).sort((a, b) => b[1] - a[1]);
+
+                sortedHistory.forEach(([group, count]) => {
+                    historyHtml += `
+                        <div class="history-item">
+                            <span>${group}</span>
+                            <span>${count} 次</span>
+                        </div>
+                    `;
+                });
+
+                historyDiv.innerHTML = historyHtml;
+                historyDiv.style.display = 'block';
+            } else {
+                historyDiv.innerHTML = '<div>暂无卧底历史</div>';
+                historyDiv.style.display = 'block';
+            }
+        }
+
         function updateGroups(data) {
             const groupsList = document.getElementById('groups-list');
-            if (!data.groups) {
+            if (!data.groups || Object.keys(data.groups).length === 0) {
                 groupsList.innerHTML = '<p>暂无注册的组</p>';
                 return;
             }
-            
+
             let html = '';
             for (const [name, info] of Object.entries(data.groups)) {
                 const role = info.role || 'unknown';
                 const eliminated = info.eliminated || false;
+                const undercoverCount = info.undercover_count || 0;
+
                 html += `
                     <div class="group-card ${role} ${eliminated ? 'eliminated' : ''}">
                         <div><strong>${name}</strong></div>
                         <div>${role === 'undercover' ? '卧底' : role === 'civilian' ? '平民' : '未知'}</div>
-                        ${eliminated ? '<div style="color: red;">已淘汰</div>' : ''}
+                        <div style="font-size: 0.9em; color: #666;">卧底次数: ${undercoverCount}</div>
+                        ${eliminated ? '<div style="color: red; font-weight: bold;">已淘汰</div>' : ''}
                     </div>
                 `;
             }
             groupsList.innerHTML = html;
         }
-        
+
         function updateDescriptions(data) {
             const descDiv = document.getElementById('descriptions');
             const allDescriptions = data.descriptions || {};
@@ -674,19 +783,19 @@ HTML_TEMPLATE = """
 
             // 按回合顺序排列（从新到旧）
             const numericRounds = rounds.map(r => parseInt(r, 10)).sort((a, b) => b - a);
-            
+
             let html = '';
             let hasAnyDescription = false;
-            
+
             // 显示所有回合的描述
             for (const roundNum of numericRounds) {
                 const roundDescriptions = allDescriptions[roundNum] || [];
                 if (roundDescriptions.length > 0) {
                     hasAnyDescription = true;
-                    
+
                     // 回合分界线
                     html += `<div class="round-divider">📢 第 ${roundNum} 回合 (${roundDescriptions.length}人发言)</div>`;
-                    
+
                     for (const desc of roundDescriptions) {
                         const time = new Date(desc.time).toLocaleTimeString('zh-CN');
                         const isUndercover = data.undercover_group && desc.group === data.undercover_group;
@@ -700,11 +809,11 @@ HTML_TEMPLATE = """
                     }
                 }
             }
-            
+
             if (!hasAnyDescription) {
                 html = '<p>暂无描述</p>';
             }
-            
+
             descDiv.innerHTML = html;
         }
 
@@ -732,14 +841,14 @@ HTML_TEMPLATE = """
             }
             reportsDiv.innerHTML = html;
         }
-        
+
         function updateScores(data) {
             const scoresDiv = document.getElementById('scores');
             if (!data.scores || Object.keys(data.scores).length === 0) {
                 scoresDiv.innerHTML = '<p>暂无得分</p>';
                 return;
             }
-            
+
             let html = '';
             for (const [group, score] of Object.entries(data.scores)) {
                 html += `
@@ -751,32 +860,58 @@ HTML_TEMPLATE = """
             }
             scoresDiv.innerHTML = html;
         }
-        
+
         function updateVoteResult(data) {
             const voteDiv = document.getElementById('vote-result');
             let html = '';
-            
+
             // 显示提示信息
             if (data.message) {
                 html += `<div class="vote-item" style="font-size: 1.2em; padding: 10px; background: #e3f2fd; border-radius: 5px; margin-bottom: 10px;">${data.message}</div>`;
             }
-            
+
+            // 显示详细投票情况
+            html += '<div class="vote-item"><strong>📊 详细投票情况：</strong></div>';
+
+            // 显示每个人的投票
+            if (data.vote_details) {
+                for (const [voter, target] of Object.entries(data.vote_details)) {
+                    html += `<div class="vote-item">${voter} → ${target}</div>`;
+                }
+                html += '<div class="vote-item">---</div>';
+            }
+
             // 得票统计
             html += '<div class="vote-item"><strong>📊 得票统计：</strong></div>';
             for (const [group, votes] of Object.entries(data.vote_count || {})) {
                 html += `<div class="vote-item">${group}: ${votes}票</div>`;
             }
-            
+
+            // 显示票数相同的组
+            if (data.max_voted_groups && data.max_voted_groups.length > 1) {
+                html += `<div class="vote-item" style="color: #ff9800;">票数相同：${data.max_voted_groups.join('、')}（各${data.max_votes}票）</div>`;
+            }
+
+            // 显示投票时的活跃组
+            if (data.active_groups) {
+                html += `<div class="vote-item" style="color: #2196f3;">投票时活跃组：${data.active_groups.join(', ')}</div>`;
+            }
+
+            // 显示已投票的组
+            if (data.voted_groups) {
+                html += `<div class="vote-item" style="color: #4caf50;">已投票组：${data.voted_groups.join(', ')}</div>`;
+            }
+
             // 淘汰信息
             if (data.eliminated && data.eliminated.length > 0) {
                 html += `<div class="vote-item" style="color: red; font-weight: bold;">💀 淘汰：${data.eliminated.join(', ')}</div>`;
             }
-            
+
             // 游戏结束信息
             if (data.game_ended) {
                 const winnerText = data.winner === 'undercover' ? '🎭 卧底胜利！' : '👥 平民胜利！';
                 html += `<div class="vote-item" style="font-size: 1.5em; color: ${data.winner === 'undercover' ? '#f44336' : '#4caf50'}; font-weight: bold; margin-top: 10px;">${winnerText}</div>`;
-                
+
                 // 揭示卧底身份和词语
                 if (data.undercover_group) {
                     html += `<div class="vote-item" style="background: #fff3e0; padding: 10px; border-radius: 5px; margin-top: 10px;">`;
@@ -785,7 +920,7 @@ HTML_TEMPLATE = """
                     html += `<div>平民词：<strong>${data.civilian_word || '???'}</strong></div>`;
                     html += `</div>`;
                 }
-                
+
                 // 显示最终得分
                 if (data.final_scores && Object.keys(data.final_scores).length > 0) {
                     html += `<div class="vote-item" style="margin-top: 10px;"><strong>🏆 最终得分：</strong></div>`;
@@ -800,19 +935,19 @@ HTML_TEMPLATE = """
                     }
                 }
             }
-            
+
             voteDiv.innerHTML = html;
         }
-        
+
         function startGame() {
             const undercoverWord = document.getElementById('undercover-word').value;
             const civilianWord = document.getElementById('civilian-word').value;
-            
+
             if (!undercoverWord || !civilianWord) {
                 alert('请输入卧底词和平民词');
                 return;
             }
-            
+
             fetch('/api/game/start', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -834,7 +969,7 @@ HTML_TEMPLATE = """
                 alert('请求失败：' + error);
             });
         }
-        
+
         function startRound() {
             fetch('/api/game/round/start', {
                 method: 'POST',
@@ -855,7 +990,7 @@ HTML_TEMPLATE = """
                 alert('请求失败：' + error);
             });
         }
-        
+
         function processVoting() {
             fetch('/api/game/voting/process', {
                 method: 'POST',
@@ -865,15 +1000,15 @@ HTML_TEMPLATE = """
             .then(resp => {
                 if (resp && resp.code === 200) {
                     const data = resp.data || {};
-                    
+
                     // 使用服务器返回的提示信息
                     let message = data.message || '投票结果已处理';
-                    
+
                     if (data.game_ended) {
                         message += '\\n\\n🎭 卧底是：' + data.undercover_group;
                         message += '\\n卧底词：' + data.undercover_word;
                         message += '\\n平民词：' + data.civilian_word;
-                        
+
                         if (data.final_scores) {
                             message += '\\n\\n🏆 最终得分：';
                             for (const [group, score] of Object.entries(data.final_scores)) {
@@ -882,10 +1017,17 @@ HTML_TEMPLATE = """
                         }
                     }
                     alert(message);
-                    
+
                     // 更新投票结果显示
                     const voteDiv = document.getElementById('vote-result');
-                    let html = '<div class="vote-item">得票统计：</div>';
+                    let html = '<div class="vote-item"><strong>📊 投票结果：</strong></div>';
+                    if (data.vote_details) {
+                        html += '<div class="vote-item">详细投票：</div>';
+                        for (const [voter, target] of Object.entries(data.vote_details)) {
+                            html += `<div class="vote-item">${voter} → ${target}</div>`;
+                        }
+                        html += '<div class="vote-item">---</div>';
+                    }
                     for (const [group, votes] of Object.entries(data.vote_count || {})) {
                         html += `<div class="vote-item">${group}: ${votes}票</div>`;
                     }
@@ -893,7 +1035,7 @@ HTML_TEMPLATE = """
                         html += `<div class="vote-item" style="color: red;">淘汰：${data.eliminated.join(', ')}</div>`;
                     }
                     voteDiv.innerHTML = html;
-                    
+
                     updateGameState();
                 } else {
                     alert('错误：' + (resp ? resp.message : '后端无响应'));
@@ -903,9 +1045,9 @@ HTML_TEMPLATE = """
                 alert('请求失败：' + error);
             });
         }
-        
+
         function resetGame() {
-            if (confirm('确定要重置游戏吗？')) {
+            if (confirm('确定要重置游戏吗？重置后游戏状态将清除，但已注册的组会保留。')) {
                 fetch('/api/game/reset', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'}
@@ -916,6 +1058,9 @@ HTML_TEMPLATE = """
                         alert(resp.message || '游戏已重置');
                         updateGameState();
                         document.getElementById('vote-result').innerHTML = '';
+                        // 清除输入框
+                        document.getElementById('undercover-word').value = '';
+                        document.getElementById('civilian-word').value = '';
                     } else {
                         alert('错误：' + (resp ? resp.message : '后端无响应'));
                     }
@@ -929,7 +1074,6 @@ HTML_TEMPLATE = """
 </body>
 </html>
 """
-
 
 @frontend_app.route('/')
 def index():
@@ -1009,7 +1153,6 @@ if __name__ == '__main__':
     print("=" * 50)
     print("注意：请确保后端服务器(backend.py)已启动")
     print("=" * 50)
-    
+
     # 前端服务器运行在5001端口
     frontend_app.run(host='0.0.0.0', port=5001, debug=True)
-

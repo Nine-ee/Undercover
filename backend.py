@@ -75,10 +75,10 @@ def register():
     data = request.json
     group_name = data.get('group_name') or data.get('group_id', '')
     group_name = group_name.strip() if isinstance(group_name, str) else ''
-    
+
     if not group_name:
         return make_response({}, 400, '组名不能为空')
-    
+
     with game_lock:
         success = game.register_group(group_name)
         if success:
@@ -101,10 +101,10 @@ def start_game():
     data = request.json
     undercover_word = data.get('undercover_word', '').strip()
     civilian_word = data.get('civilian_word', '').strip()
-    
+
     if not undercover_word or not civilian_word:
         return make_response({}, 400, '词语不能为空')
-    
+
     with game_lock:
         success = game.start_game(undercover_word, civilian_word)
         if success:
@@ -144,10 +144,10 @@ def submit_description():
     data = request.json
     group_name = data.get('group_name', '').strip()
     description = data.get('description', '').strip()
-    
+
     if not group_name or not description:
         return make_response({}, 400, '组名和描述不能为空')
-    
+
     with game_lock:
         success, message = game.submit_description(group_name, description)
         if success:
@@ -161,9 +161,13 @@ def submit_description():
                 'total_descriptions': len(current_descriptions)
             }, 200, message)
         else:
+            # 返回当前状态
+            status = game.get_public_status()
             return make_response({
-                'current_speaker': game.get_current_speaker()
-            }, 200, message)  # 返回200但提示需要等待
+                'current_speaker': game.get_current_speaker(),
+                'status': status.get('status'),
+                'is_eliminated': group_name in game.eliminated_groups
+            }, 200, message)
 
 
 @app.route('/api/vote', methods=['POST'])
@@ -172,18 +176,22 @@ def submit_vote():
     data = request.json
     voter_group = data.get('voter_group', '').strip()
     target_group = data.get('target_group', '').strip()
-    
+
     if not voter_group or not target_group:
         return make_response({}, 400, '投票者和被投票者不能为空')
-    
+
     with game_lock:
-        success = game.submit_vote(voter_group, target_group)
+        success, message = game.submit_vote(voter_group, target_group)
         if success:
             # 广播状态变化
             socketio.start_background_task(broadcast_status)
-            return make_response({}, 200, '投票提交成功')
+            return make_response({}, 200, message or '投票提交成功')
         else:
-            return make_response({}, 400, '投票提交失败：游戏状态不正确、组名无效或不能投自己')
+            # 返回淘汰状态
+            is_eliminated = voter_group in game.eliminated_groups
+            return make_response({
+                'is_eliminated': is_eliminated
+            }, 400, message or '投票提交失败')
 
 
 @app.route('/api/game/voting/process', methods=['POST'])
@@ -216,8 +224,12 @@ def get_game_state():
 @app.route('/api/status', methods=['GET'])
 def public_status():
     """游戏方公共状态接口"""
+    group_name = request.args.get('group_name', '').strip()
     with game_lock:
         status = game.get_public_status()
+        # 添加是否为淘汰组的信息
+        if group_name:
+            status['is_eliminated'] = group_name in game.eliminated_groups
         return make_response(status)
 
 
@@ -235,11 +247,12 @@ def public_result():
 def get_word():
     """获取词语接口（游戏方调用，仅返回自己的词语）"""
     group_name = request.args.get('group_name', '').strip()
-    
+
     if not group_name:
         return make_response({}, 400, '组名不能为空')
-    
+
     with game_lock:
+        # 检查是否被淘汰（淘汰组也可以看到自己的词语）
         word = game.get_group_word(group_name)
         if word:
             return make_response({'word': word})
@@ -251,11 +264,11 @@ def get_word():
 def get_descriptions():
     """获取当前回合的描述列表（游戏方调用）"""
     round_num = request.args.get('round', type=int)
-    
+
     with game_lock:
         if round_num is None:
             round_num = game.current_round
-        
+
         descriptions = game.descriptions.get(round_num, [])
         result = []
         for desc in descriptions:
@@ -263,7 +276,7 @@ def get_descriptions():
                 'group': desc['group'],
                 'description': desc['description']
             })
-        
+
         return make_response({
             'round': round_num,
             'descriptions': result,
@@ -322,6 +335,19 @@ def get_groups():
         })
 
 
+@app.route('/api/vote/details', methods=['GET'])
+def get_vote_details():
+    """获取详细的投票信息（游戏方调用）"""
+    group_name = request.args.get('group_name', '').strip()
+
+    if not group_name:
+        return make_response({}, 400, '组名不能为空')
+
+    with game_lock:
+        result = game.get_vote_details_for_group(group_name)
+        return make_response(result)
+
+
 # WebSocket事件处理
 @socketio.on('connect')
 def handle_connect():
@@ -351,7 +377,6 @@ if __name__ == '__main__':
     print(f"=" * 50)
     print(f"请确保游戏方能够访问上述IP地址")
     print(f"=" * 50)
-    
+
     # 使用 socketio.run 替代 app.run
     socketio.run(app, host='0.0.0.0', port=5000, debug=True, allow_unsafe_werkzeug=True)
-
