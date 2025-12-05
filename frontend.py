@@ -37,7 +37,7 @@ def post_backend_data(endpoint, data):
         return None
 
 
-# HTML模板 - 改进版：三个标签页同时显示
+# HTML模板
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -75,7 +75,7 @@ HTML_TEMPLATE = """
             font-size: 14px;
         }
 
-        /* 主容器 - 使用固定高度，确保不滚动 */
+        /* 主容器 */
         .main-container {
             height: 100vh;
             display: flex;
@@ -165,26 +165,61 @@ HTML_TEMPLATE = """
             text-align: center;
         }
 
-        /* 投票完成人数大号显示 */
-        .vote-count-display {
-            font-size: 1.3em;
+        .game-state-display {
+            font-size: 2em;
             font-weight: bold;
-            color: var(--primary-color);
             margin: 5px 0;
-            padding: 10px;
-            background: rgba(52, 152, 219, 0.1);
+            padding: 12px;
             border-radius: 8px;
             text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 3px 5px rgba(0,0,0,0.15);
             border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-
-        .vote-count-display span {
+        
+        .game-state-display.state-preparing {
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .game-state-display.state-describing {
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+            animation: pulse-glow 2s infinite;
+        }
+        
+        .game-state-display.state-voting {
             color: var(--warning-color);
-            font-size: 1.5em;
+            border-color: var(--warning-color);
+        }
+        
+        .game-state-display.state-round-end {
+            color: #9b59b6;
+            border-color: #9b59b6;
+        }
+        
+        .game-state-display.state-game-end {
+            color: var(--secondary-color);
+            border-color: var(--secondary-color);
+            animation: celebration 1s ease-in-out 3;
+        }
+        
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 5px rgba(52, 152, 219, 0.5); }
+            50% { box-shadow: 0 0 15px rgba(52, 152, 219, 0.8); }
+            100% { box-shadow: 0 0 5px rgba(52, 152, 219, 0.5); }
+        }
+        
+        @keyframes celebration {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
 
-        /* 主要内容区域 - 使用flex确保不超出屏幕 */
+        /* 主要内容区域 */
         .content-area {
             flex: 1;
             display: flex;
@@ -764,9 +799,9 @@ HTML_TEMPLATE = """
             </div>
         </div>
 
-        <!-- 投票完成人数大号显示 -->
-        <div class="vote-count-display" id="vote-count-display">
-            投票完成: <span id="vote-completed">0</span>/<span id="vote-total">0</span>
+        <!-- 游戏状态显示 -->
+        <div class="game-state-display" id="game-state-display">
+            等待游戏开始...
         </div>
 
         <!-- 统计卡片 -->
@@ -892,13 +927,12 @@ HTML_TEMPLATE = """
         socket.on('status_update', function(data) {
             updateRealTimeInfo(data);
             updateTimers(data);
-            updateVoteCountDisplay(data);
         });
 
         // 接收倒计时更新推送
         socket.on('timer_update', function(data) {
             updateTimers(data);
-            updateVoteCountDisplay(data);
+            updateGameStateDisplay(data);
         });
 
         // 接收完整游戏状态推送
@@ -965,6 +999,7 @@ HTML_TEMPLATE = """
             updateVoteRecords();
             updateGameResults();
             updateGameStats();
+            updateGameStateDisplay(gameData); 
         }
 
         function updateGameStatus() {
@@ -1366,23 +1401,212 @@ HTML_TEMPLATE = """
 
             document.getElementById('desc-count').textContent = `${describedCount}/${orderCount}`;
             document.getElementById('vote-count').textContent = `${votedCount}/${activeCount}`;
+            
+            // 更新游戏状态显示
+            updateGameStateDisplay(data);
         }
 
-        function updateVoteCountDisplay(data) {
-            const completed = data.voted_groups?.length || 0;
-            const total = data.active_groups?.length || data.describe_order?.length || 0;
-
-            document.getElementById('vote-completed').textContent = completed;
-            document.getElementById('vote-total').textContent = total;
-
-            // 根据投票完成情况改变颜色
-            const displayElement = document.getElementById('vote-count-display');
-            if (completed >= total && total > 0) {
-                displayElement.style.background = 'rgba(46, 204, 113, 0.1)';
-                displayElement.style.color = 'var(--secondary-color)';
-            } else {
-                displayElement.style.background = 'rgba(52, 152, 219, 0.1)';
-                displayElement.style.color = 'var(--primary-color)';
+        function updateGameStateDisplay(data) {
+            const displayElement = document.getElementById('game-state-display');
+            const status = data.status || 'waiting';
+            const currentSpeaker = data.current_speaker || '';
+            const describedGroups = data.described_groups || [];
+            const votedGroups = data.voted_groups || [];
+            const describeOrder = data.describe_order || [];
+            const activeGroups = data.active_groups || [];
+            const currentRound = data.current_round || 1;
+            const eliminatedGroups = data.eliminated_groups || [];
+            const currentSpeakerIndex = data.current_speaker_index || 0;
+            
+            let displayText = '';
+            let displayClass = '';
+            let bgColor = '';
+            
+            // 检查是否是游戏结束状态，并且检查是否有最新的投票结果
+            const isGameEnd = status === 'game_end';
+            let winner = '';
+            
+            // 如果游戏结束，尝试从最新的投票结果中获取正确的胜利方
+            if (isGameEnd) {
+                // 从最新的投票结果中获取胜利方
+                const latestRound = Math.max(...Object.keys(allVoteResults).map(Number).filter(n => !isNaN(n)), 0);
+                if (latestRound > 0 && allVoteResults[latestRound]) {
+                    const latestResult = allVoteResults[latestRound];
+                    winner = latestResult.winner || data.winner || '';
+                } else {
+                    winner = data.winner || '';
+                }
+                
+                // 调试日志
+                console.log('游戏结束状态 - 数据来源:', {
+                    status: status,
+                    dataWinner: data.winner,
+                    latestRoundWinner: latestRound > 0 ? (allVoteResults[latestRound]?.winner) : '无',
+                    finalWinner: winner
+                });
+            }
+            
+            switch(status) {
+                case 'waiting':
+                case 'registered':
+                case 'word_assigned':
+                    displayText = '🎮 准备中...';
+                    displayClass = 'state-preparing';
+                    bgColor = 'rgba(52, 152, 219, 0.1)';
+                    break;
+                                    
+                case 'describing':
+                    if (describeOrder.length > 0) {
+                        // 参考updateSpeakingOrder的样式显示发言顺序
+                        let html = '<div style="display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; margin-left: 20px;">';
+                        
+                        describeOrder.forEach((group, index) => {
+                            const isCurrent = group === currentSpeaker;
+                            const isEliminated = eliminatedGroups.includes(group);
+                            const hasDescribed = describedGroups.includes(group);
+                            const isBeforeCurrent = index < currentSpeakerIndex;
+                            
+                            // 参考updateSpeakingOrder的样式逻辑
+                            let className = 'speaker-item';
+                            let text = group;
+                            let style = '';
+                            
+                            if (isEliminated) {
+                                // 被淘汰的玩家
+                                style = `
+                                    padding: 3px 8px;
+                                    border-radius: 4px;
+                                    font-size: 0.9em;
+                                    background: #95a5a6;
+                                    color: white;
+                                    font-weight: normal;
+                                    border: 1px solid var(--border-color);
+                                    opacity: 0.7;
+                                `;
+                                text = '💀 ' + text;
+                            } else if (isCurrent) {
+                                // 当前发言者
+                                style = `
+                                    padding: 5px 10px;
+                                    border-radius: 6px;
+                                    font-size: 1.1em;
+                                    background: var(--primary-color);
+                                    color: white;
+                                    font-weight: bold;
+                                    border: 2px solid var(--primary-color);
+                                    animation: pulse-border 1.5s infinite;
+                                    box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+                                `;
+                                text = '🎤 ' + text;
+                            } else if (isBeforeCurrent || hasDescribed) {
+                                // 已完成描述的玩家
+                                style = `
+                                    padding: 3px 8px;
+                                    border-radius: 4px;
+                                    font-size: 0.9em;
+                                    background: #2ecc71;
+                                    color: white;
+                                    font-weight: normal;
+                                    border: 1px solid var(--border-color);
+                                `;
+                                text = '✅ ' + text;
+                            } else {
+                                // 待描述的玩家
+                                style = `
+                                    padding: 3px 8px;
+                                    border-radius: 4px;
+                                    font-size: 0.9em;
+                                    background: var(--light-color);
+                                    color: var(--dark-color);
+                                    font-weight: normal;
+                                    border: 1px solid var(--border-color);
+                                `;
+                                text = '⬜ ' + text;
+                            }
+                            
+                            html += `<span style="${style}">${text}</span>`;
+                            
+                            // 在玩家之间添加箭头（除了最后一个）
+                            if (index < describeOrder.length - 1) {
+                                html += `<span style="color: #7f8c8d; font-size: 1.2em; margin: 0 4px;">→</span>`;
+                            }
+                        });
+                        
+                        html += '</div>';
+                        displayText = `🗣️ 描述顺序：${html}`;
+                        displayClass = 'state-describing';
+                        bgColor = 'rgba(52, 152, 219, 0.15)';
+                    } else {
+                        displayText = '🗣️ 描述阶段...';
+                        displayClass = 'state-describing';
+                        bgColor = 'rgba(52, 152, 219, 0.15)';
+                    }
+                    break;
+                                            
+                case 'voting':
+                    const votedCount = votedGroups.length;
+                    const totalCount = activeGroups.length || describeOrder.length;
+                    
+                    // 去掉百分比，只显示数量
+                    displayText = `🗳️ 投票中 - 完成: ${votedCount}/${totalCount}`;
+                    displayClass = 'state-voting';
+                    
+                    // 根据完成比例改变颜色
+                    if (votedCount >= totalCount && totalCount > 0) {
+                        bgColor = 'rgba(46, 204, 113, 0.2)';
+                    } else if (votedCount >= Math.ceil(totalCount / 2)) {
+                        bgColor = 'rgba(243, 156, 18, 0.2)';
+                    } else {
+                        bgColor = 'rgba(52, 152, 219, 0.2)';
+                    }
+                    break;
+                                            
+                case 'round_end':
+                    displayText = `🏁 第${currentRound}回合结束`;
+                    displayClass = 'state-round-end';
+                    bgColor = 'rgba(155, 89, 182, 0.1)';
+                    break;
+                                            
+                case 'game_end':
+                    let winnerText = '';
+                    
+                    // 使用从投票结果中获取的winner，如果为空则使用data.winner
+                    const finalWinner = winner || data.winner || '';
+                    
+                    // 调试信息
+                    console.log('显示游戏结束 - 最终胜利方:', {
+                        finalWinner: finalWinner,
+                        fromAllVoteResults: winner,
+                        fromData: data.winner
+                    });
+                    
+                    if (finalWinner === 'undercover' || finalWinner === '卧底') {
+                        winnerText = '🎭 卧底胜利';
+                        bgColor = 'rgba(231, 76, 60, 0.1)';
+                        displayClass = 'state-game-end undercover-victory';
+                    } else {
+                        winnerText = '👥 平民胜利';
+                        bgColor = 'rgba(46, 204, 113, 0.1)';
+                        displayClass = 'state-game-end civilian-victory';
+                    }
+                    displayText = `🎊 游戏结束 - ${winnerText}`;
+                    break;
+                                            
+                default:
+                    displayText = `🔄 ${status}`;
+                    displayClass = 'state-other';
+                    bgColor = 'rgba(149, 165, 166, 0.1)';
+            }
+            
+            // 更新显示内容
+            displayElement.innerHTML = displayText;
+            displayElement.className = 'game-state-display ' + displayClass;
+            displayElement.style.background = bgColor;
+            
+            // 如果正在描述，高亮当前发言者
+            if (status === 'describing' && currentSpeaker) {
+                document.getElementById('current-speaker-name').textContent = currentSpeaker;
+                document.getElementById('current-speaker-name').style.color = 'var(--primary-color)';
             }
         }
 
@@ -1390,63 +1614,83 @@ HTML_TEMPLATE = """
             const mainTimer = document.getElementById('main-timer');
             const descTimer = document.getElementById('desc-timer');
             const voteTimer = document.getElementById('vote-timer');
-
+        
+            // 清除所有警告样式
+            mainTimer.classList.remove('timer-warning');
+            descTimer.classList.remove('timer-warning');
+            voteTimer.classList.remove('timer-warning');
+            mainTimer.style.color = '';
+            descTimer.style.color = '';
+            voteTimer.style.color = '';
+        
             // 主计时器显示最重要的倒计时
             if (data.status === 'describing') {
                 if (data.speaker_remaining_seconds !== undefined && data.speaker_remaining_seconds >= 0) {
+                    // 使用speaker_remaining_seconds作为主计时器
                     mainTimer.textContent = `${data.speaker_remaining_seconds}s`;
-                    descTimer.textContent = `${formatTime(data.remaining_seconds)}`;
+                    
+                    // 底部信息栏也显示相同的时间
+                    descTimer.textContent = `${data.speaker_remaining_seconds}s`;
                     voteTimer.textContent = '--:--';
-
+        
                     // 最后10秒红色闪烁
                     if (data.speaker_remaining_seconds <= 10) {
                         mainTimer.classList.add('timer-warning');
                         mainTimer.style.color = 'var(--danger-color)';
-                    } else {
-                        mainTimer.classList.remove('timer-warning');
-                        mainTimer.style.color = '';
+                        descTimer.classList.add('timer-warning');
+                        descTimer.style.color = 'var(--danger-color)';
                     }
                 } else if (data.remaining_seconds !== undefined && data.remaining_seconds >= 0) {
-                    mainTimer.textContent = `阶段:${formatTime(data.remaining_seconds)}`;
-                    descTimer.textContent = formatTime(data.remaining_seconds);
+                    // 如果没有speaker_remaining_seconds，使用remaining_seconds
+                    const timeStr = formatTime(data.remaining_seconds);
+                    
+                    mainTimer.textContent = timeStr;
+                    descTimer.textContent = timeStr;
                     voteTimer.textContent = '--:--';
-
+        
                     if (data.remaining_seconds <= 10) {
                         mainTimer.classList.add('timer-warning');
                         mainTimer.style.color = 'var(--danger-color)';
-                    } else {
-                        mainTimer.classList.remove('timer-warning');
-                        mainTimer.style.color = '';
+                        descTimer.classList.add('timer-warning');
+                        descTimer.style.color = 'var(--danger-color)';
                     }
+                } else {
+                    // 没有倒计时数据时
+                    mainTimer.textContent = '--:--';
+                    descTimer.textContent = '--:--';
+                    voteTimer.textContent = '--:--';
                 }
             } else if (data.status === 'voting') {
                 if (data.remaining_seconds !== undefined && data.remaining_seconds >= 0) {
-                    mainTimer.textContent = `${formatTime(data.remaining_seconds)}`;
+                    const timeStr = formatTime(data.remaining_seconds);
+                    
+                    mainTimer.textContent = timeStr;
                     descTimer.textContent = '--:--';
-                    voteTimer.textContent = formatTime(data.remaining_seconds);
-
+                    voteTimer.textContent = timeStr;
+        
                     if (data.remaining_seconds <= 10) {
                         mainTimer.classList.add('timer-warning');
                         mainTimer.style.color = 'var(--danger-color)';
-                    } else {
-                        mainTimer.classList.remove('timer-warning');
-                        mainTimer.style.color = '';
+                        voteTimer.classList.add('timer-warning');
+                        voteTimer.style.color = 'var(--danger-color)';
                     }
+                } else {
+                    mainTimer.textContent = '--:--';
+                    descTimer.textContent = '--:--';
+                    voteTimer.textContent = '--:--';
                 }
             } else {
                 mainTimer.textContent = '--:--';
                 descTimer.textContent = '--:--';
                 voteTimer.textContent = '--:--';
-                mainTimer.classList.remove('timer-warning');
-                mainTimer.style.color = '';
             }
-
-            function formatTime(seconds) {
-                if (seconds === undefined || seconds < 0) return '--:--';
-                const minutes = Math.floor(seconds / 60);
-                const secs = seconds % 60;
-                return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-            }
+        }
+        
+        function formatTime(seconds) {
+            if (seconds === undefined || seconds < 0) return '--:--';
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
 
         function updateServerStatus(isConnected) {
