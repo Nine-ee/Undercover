@@ -159,15 +159,14 @@ def start_game():
     with game_lock:
         success = game.start_game(undercover_word, civilian_word)
         if success:
-            # 启动倒计时广播
-            start_timer_broadcast()
+            # 游戏开始后不启动倒计时，等待玩家准备后再开始回合
             # 广播状态变化
             socketio.start_background_task(broadcast_status)
             socketio.start_background_task(broadcast_game_state)
             return make_response({
                 'undercover_group': game.undercover_group,
                 'groups': {name: info['role'] for name, info in game.groups.items()}
-            }, 200, '游戏已开始')
+            }, 200, '游戏已开始，等待玩家准备')
         else:
             return make_response({}, 400, '无法开始游戏：游戏状态不正确或没有注册的组')
 
@@ -236,10 +235,28 @@ def submit_vote():
         return make_response({}, 400, '投票者和被投票者不能为空')
 
     with game_lock:
-        success, message = game.submit_vote(voter_group, target_group)
+        success, message, all_voted = game.submit_vote(voter_group, target_group)
+        
         if success:
             # 广播状态变化
             socketio.start_background_task(broadcast_status)
+            
+            # 如果所有人都投票了，自动处理投票结果
+            if all_voted:
+                vote_result = game.process_voting_result()
+                if 'error' not in vote_result:
+                    # 停止倒计时广播
+                    stop_timer_broadcast()
+                    # 广播状态变化
+                    socketio.start_background_task(broadcast_status)
+                    socketio.start_background_task(broadcast_game_state)
+                    # 广播投票结果
+                    socketio.emit('vote_result', vote_result)
+                    return make_response({
+                        'auto_processed': True,
+                        'vote_result': vote_result
+                    }, 200, '投票提交成功，投票结果已自动处理')
+            
             return make_response({}, 200, message or '投票提交成功')
         else:
             # 返回淘汰状态
@@ -247,6 +264,45 @@ def submit_vote():
             return make_response({
                 'is_eliminated': is_eliminated
             }, 400, message or '投票提交失败')
+
+
+@app.route('/api/ready', methods=['POST'])
+def submit_ready():
+    """提交准备就绪接口（游戏方调用）"""
+    data = request.json
+    group_name = data.get('group_name', '').strip()
+
+    if not group_name:
+        return make_response({}, 400, '组名不能为空')
+
+    with game_lock:
+        success, message, all_ready = game.submit_ready(group_name)
+        
+        if success:
+            # 广播状态变化
+            socketio.start_background_task(broadcast_status)
+            socketio.start_background_task(broadcast_game_state)
+            
+            # 如果所有人都准备好了，自动开始回合
+            if all_ready:
+                order = game.start_round()
+                if order:
+                    # 启动倒计时广播
+                    start_timer_broadcast()
+                    # 广播状态变化
+                    socketio.start_background_task(broadcast_status)
+                    socketio.start_background_task(broadcast_game_state)
+                    return make_response({
+                        'auto_started': True,
+                        'round': game.current_round,
+                        'order': order
+                    }, 200, '所有人已准备好，回合已自动开始')
+                else:
+                    return make_response({}, 400, '所有人已准备好，但无法开始回合')
+            
+            return make_response({}, 200, message or '准备成功')
+        else:
+            return make_response({}, 400, message or '准备失败')
 
 
 @app.route('/api/game/voting/process', methods=['POST'])
@@ -395,6 +451,32 @@ def get_vote_details():
     with game_lock:
         result = game.get_vote_details_for_group(group_name)
         return make_response(result)
+
+
+@app.route('/api/scores', methods=['GET'])
+def get_scores():
+    """获取所有组的总分接口（游戏方调用）"""
+    with game_lock:
+        # 按分数排序（从高到低）
+        sorted_scores = sorted(
+            game.scores.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        
+        # 构建返回数据
+        scores_list = [
+            {
+                'group_name': group_name,
+                'total_score': score
+            }
+            for group_name, score in sorted_scores
+        ]
+        
+        return make_response({
+            'scores': scores_list,
+            'total_groups': len(scores_list)
+        })
 
 
 # WebSocket事件处理

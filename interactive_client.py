@@ -154,6 +154,22 @@ class InteractiveClient:
         except Exception as e:
             return False, str(e)
 
+    def submit_ready(self) -> tuple:
+        """提交准备就绪"""
+        # 检查是否被淘汰
+        if self.is_eliminated:
+            return False, False, "你已被淘汰，不能准备"
+
+        try:
+            r = requests.post(f"{BASE_URL}/api/ready",
+                              json={"group_name": self.group_name}, timeout=5)
+            result = r.json()
+            success = result.get('code') == 200
+            auto_started = result.get('data', {}).get('auto_started', False) if success else False
+            return success, auto_started, result.get('message', '')
+        except Exception as e:
+            return False, False, str(e)
+
     def display_status(self, status: dict):
         """显示当前状态"""
         self.clear_screen()
@@ -552,20 +568,122 @@ class InteractiveClient:
 
             elif game_status == 'round_end':
                 self.display_status(status)
-                print("\n回合结束，等待主持方开始下一轮...")
+                print("\n该轮游戏结束，准备开始下一轮...")
+                
+                # 如果未被淘汰，等待用户手动确认准备
+                if not self.is_eliminated:
+                    ready_groups = status.get('ready_groups', [])
+                    if self.group_name not in ready_groups:
+                        print(f"\n请输入 'ready' 或 'r' 表示准备就绪...")
+                        
+                        # 等待用户输入
+                        while True:
+                            try:
+                                user_input = input("> ").strip().lower()
+                                if user_input in ['ready', 'r', '准备']:
+                                    print(f"\n正在提交准备就绪...")
+                                    success, auto_started, msg = self.submit_ready()
+                                    if success:
+                                        if auto_started:
+                                            print(f"✓ {msg}")
+                                            break  # 回合已自动开始，退出等待循环
+                                        else:
+                                            print(f"✓ {msg}")
+                                            # 显示准备状态
+                                            status = self.get_status()
+                                            ready_groups = status.get('ready_groups', [])
+                                            active_groups = status.get('active_groups', [])
+                                            print(f"已准备: {len(ready_groups)}/{len(active_groups)} 组")
+                                            break  # 已准备，退出等待循环
+                                    else:
+                                        print(f"✗ 准备失败: {msg}")
+                                        break
+                                else:
+                                    print("输入无效，请输入 'ready' 或 'r' 表示准备就绪")
+                            except KeyboardInterrupt:
+                                print("\n\n用户中断")
+                                return False
+                            except EOFError:
+                                print("\n\n输入结束")
+                                return False
+                
+                # 等待所有人准备好或状态改变
                 while True:
                     s = self.get_status()
-                    if s.get('status') in ['describing', 'game_end', 'waiting', 'registered']:
+                    new_status = s.get('status')
+                    
+                    if new_status == 'describing':
+                        print("\n所有人已准备好，回合开始！")
                         break
+                    elif new_status in ['game_end', 'waiting', 'registered']:
+                        break
+                    
+                    # 显示准备进度
+                    ready_groups = s.get('ready_groups', [])
+                    active_groups = s.get('active_groups', [])
+                    if len(active_groups) > 0:
+                        print(f"\r等待准备: {len(ready_groups)}/{len(active_groups)} 组已准备", end='', flush=True)
+                    
                     time.sleep(2)
 
             elif game_status == 'word_assigned':
                 self.display_status(status)
-                print("\n等待主持方开始第一回合...")
+                print("\n等待所有人准备好开始新一轮游戏...")
+                
+                # 如果未被淘汰，等待用户手动确认准备
+                if not self.is_eliminated:
+                    ready_groups = status.get('ready_groups', [])
+                    if self.group_name not in ready_groups:
+                        print(f"\n请输入 'ready' 或 'r' 表示准备就绪...")
+                        
+                        # 等待用户输入
+                        while True:
+                            try:
+                                user_input = input("> ").strip().lower()
+                                if user_input in ['ready', 'r', '准备']:
+                                    print(f"\n正在提交准备就绪...")
+                                    success, auto_started, msg = self.submit_ready()
+                                    if success:
+                                        if auto_started:
+                                            print(f"✓ {msg}")
+                                            break  # 回合已自动开始，退出等待循环
+                                        else:
+                                            print(f"✓ {msg}")
+                                            # 显示准备状态
+                                            status = self.get_status()
+                                            ready_groups = status.get('ready_groups', [])
+                                            active_groups = status.get('active_groups', [])
+                                            print(f"已准备: {len(ready_groups)}/{len(active_groups)} 组")
+                                            break  # 已准备，退出等待循环
+                                    else:
+                                        print(f"✗ 准备失败: {msg}")
+                                        break
+                                else:
+                                    print("输入无效，请输入 'ready' 或 'r' 表示准备就绪")
+                            except KeyboardInterrupt:
+                                print("\n\n用户中断")
+                                return False
+                            except EOFError:
+                                print("\n\n输入结束")
+                                return False
+                
+                # 等待所有人准备好或状态改变
                 while True:
                     s = self.get_status()
-                    if s.get('status') in ['describing', 'game_end', 'waiting', 'registered']:
+                    new_status = s.get('status')
+                    
+                    if new_status == 'describing':
+                        print("\n所有人已准备好，新一轮游戏开始！")
                         break
+                    elif new_status in ['game_end', 'waiting', 'registered']:
+                        break
+                    
+                    # 显示准备进度
+                    ready_groups = s.get('ready_groups', [])
+                    active_groups = s.get('active_groups', [])
+                    if len(active_groups) > 0:
+                        print(f"\r等待准备: {len(ready_groups)}/{len(active_groups)} 组已准备", end='', flush=True)
+                    
                     time.sleep(2)
 
             else:

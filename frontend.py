@@ -123,7 +123,6 @@ HTML_TEMPLATE = """
 
         .btn-start { background: #27ae60; color: white; }
         .btn-round { background: #3498db; color: white; }
-        .btn-vote { background: #f39c12; color: white; }
         .btn-reset { background: #e74c3c; color: white; }
 
         .control-btn:hover {
@@ -403,6 +402,7 @@ HTML_TEMPLATE = """
         .status-speaking { background: var(--primary-color); }
         .status-described { background: #9b59b6; }
         .status-voted { background: var(--warning-color); }
+        .status-ready { background: #16a085; }
         .status-online { background: var(--secondary-color); }
         .status-offline { background: #95a5a6; }
 
@@ -798,6 +798,253 @@ HTML_TEMPLATE = """
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            max-width: 700px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            animation: slideDown 0.3s;
+            position: relative;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .modal-header h2 {
+            color: var(--dark-color);
+            font-size: 1.5em;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: var(--dark-color);
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .close-btn:hover {
+            background-color: var(--light-color);
+            color: var(--danger-color);
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--dark-color);
+            font-weight: 600;
+            font-size: 1em;
+        }
+
+        .form-group input[type="number"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input[type="number"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+
+        .rounds-container {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .rounds-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .rounds-container::-webkit-scrollbar-track {
+            background: var(--border-color);
+            border-radius: 5px;
+        }
+
+        .rounds-container::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 5px;
+        }
+
+        .round-item {
+            background: var(--light-color);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 2px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .round-item:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .round-item-header {
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .round-item-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .round-item-input {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .round-item-input label {
+            font-size: 0.9em;
+            color: var(--dark-color);
+            font-weight: 600;
+        }
+
+        .round-item-input input {
+            padding: 8px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            font-size: 0.95em;
+            transition: border-color 0.3s ease;
+        }
+
+        .round-item-input input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding-top: 20px;
+            border-top: 2px solid var(--border-color);
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-btn-primary {
+            background: var(--secondary-color);
+            color: white;
+        }
+
+        .modal-btn-primary:hover {
+            background: #229954;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .modal-btn-secondary {
+            background: var(--light-color);
+            color: var(--dark-color);
+        }
+
+        .modal-btn-secondary:hover {
+            background: #e1e8ed;
+        }
+
+        @media (max-width: 768px) {
+            .round-item-inputs {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -814,14 +1061,8 @@ HTML_TEMPLATE = """
             </div>
 
             <div class="game-controls">
-                <button class="control-btn btn-start" onclick="startGame()">
-                    <i class="fas fa-play"></i> 开始游戏
-                </button>
-                <button class="control-btn btn-round" onclick="startRound()">
-                    <i class="fas fa-forward"></i> 开始回合
-                </button>
-                <button class="control-btn btn-vote" onclick="processVoting()">
-                    <i class="fas fa-vote-yea"></i> 处理投票
+                <button class="control-btn btn-start" onclick="openMultiRoundModal()">
+                    <i class="fas fa-play"></i> 开始多轮游戏
                 </button>
                 <button class="control-btn btn-reset" onclick="resetGame()">
                     <i class="fas fa-redo"></i> 重置游戏
@@ -922,7 +1163,7 @@ HTML_TEMPLATE = """
                 <label for="civilian-word"><i class="fas fa-users"></i> 平民词</label>
                 <input type="text" id="civilian-word" placeholder="输入平民词">
             </div>
-            <button class="control-btn btn-start" onclick="startGame()" style="height: fit-content;">
+            <button class="control-btn btn-start" onclick="startSingleGame()" style="height: fit-content;">
                 <i class="fas fa-play"></i> 开始游戏
             </button>
         </div>
@@ -936,12 +1177,124 @@ HTML_TEMPLATE = """
         </div>
     </div>
 
+    <!-- 多轮游戏配置模态框 -->
+    <div id="multiRoundModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>
+                    <i class="fas fa-layer-group"></i>
+                    开始多轮游戏
+                </h2>
+                <button class="close-btn" onclick="closeMultiRoundModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="round-count">
+                        <i class="fas fa-hashtag"></i>
+                        游戏轮数
+                    </label>
+                    <input type="number" id="round-count" min="1" max="10" value="1" 
+                           onchange="generateRoundInputs()" placeholder="请输入轮数（1-10）">
+                </div>
+                <div class="rounds-container" id="rounds-container">
+                    <!-- 动态生成的轮数输入框将显示在这里 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-secondary" onclick="closeMultiRoundModal()">
+                    <i class="fas fa-times"></i>
+                    取消
+                </button>
+                <button class="modal-btn modal-btn-primary" onclick="submitMultiRoundGame()">
+                    <i class="fas fa-check"></i>
+                    开始游戏
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         // WebSocket 连接
         const socket = io('http://127.0.0.1:5000');
         let gameData = {};
-        let allVoteResults = {}; // 存储所有回合的投票结果
+        let allVoteResults = {}; // 存储所有回合的投票结果，键为 "gameNumber_round" 或 "round"
+        let gameRoundMapping = {}; // 映射：round -> gameNumber（用于单轮游戏或兼容性）
+        let descriptionRoundMapping = {}; // 映射：round -> gameNumber（用于描述记录）
+        let voteRoundMapping = {}; // 映射：round -> gameNumber（用于投票记录）
+
+        // localStorage 键名
+        const STORAGE_KEYS = {
+            VOTE_RESULTS: 'undercover_vote_results',
+            ROUND_MAPPINGS: 'undercover_round_mappings',
+            MULTI_ROUND_CONFIG: 'undercover_multi_round_config',
+            CURRENT_ROUND_INDEX: 'undercover_current_round_index'
+        };
+
+        // 保存数据到 localStorage
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEYS.VOTE_RESULTS, JSON.stringify(allVoteResults));
+                localStorage.setItem(STORAGE_KEYS.ROUND_MAPPINGS, JSON.stringify({
+                    gameRoundMapping: gameRoundMapping,
+                    descriptionRoundMapping: descriptionRoundMapping,
+                    voteRoundMapping: voteRoundMapping
+                }));
+                if (multiRoundConfig) {
+                    localStorage.setItem(STORAGE_KEYS.MULTI_ROUND_CONFIG, JSON.stringify(multiRoundConfig));
+                    localStorage.setItem(STORAGE_KEYS.CURRENT_ROUND_INDEX, currentRoundIndex.toString());
+                }
+            } catch (e) {
+                console.error('保存到 localStorage 失败:', e);
+            }
+        }
+
+        // 从 localStorage 恢复数据
+        function loadFromLocalStorage() {
+            try {
+                // 恢复投票结果
+                const savedVoteResults = localStorage.getItem(STORAGE_KEYS.VOTE_RESULTS);
+                if (savedVoteResults) {
+                    allVoteResults = JSON.parse(savedVoteResults);
+                }
+
+                // 恢复轮次映射
+                const savedMappings = localStorage.getItem(STORAGE_KEYS.ROUND_MAPPINGS);
+                if (savedMappings) {
+                    const mappings = JSON.parse(savedMappings);
+                    gameRoundMapping = mappings.gameRoundMapping || {};
+                    descriptionRoundMapping = mappings.descriptionRoundMapping || {};
+                    voteRoundMapping = mappings.voteRoundMapping || {};
+                }
+
+                // 恢复多轮配置
+                const savedConfig = localStorage.getItem(STORAGE_KEYS.MULTI_ROUND_CONFIG);
+                if (savedConfig) {
+                    multiRoundConfig = JSON.parse(savedConfig);
+                    const savedIndex = localStorage.getItem(STORAGE_KEYS.CURRENT_ROUND_INDEX);
+                    if (savedIndex !== null) {
+                        currentRoundIndex = parseInt(savedIndex) || 0;
+                    }
+                }
+            } catch (e) {
+                console.error('从 localStorage 恢复数据失败:', e);
+            }
+        }
+
+        // 清除 localStorage 数据
+        function clearLocalStorage() {
+            try {
+                localStorage.removeItem(STORAGE_KEYS.VOTE_RESULTS);
+                localStorage.removeItem(STORAGE_KEYS.ROUND_MAPPINGS);
+                localStorage.removeItem(STORAGE_KEYS.MULTI_ROUND_CONFIG);
+                localStorage.removeItem(STORAGE_KEYS.CURRENT_ROUND_INDEX);
+            } catch (e) {
+                console.error('清除 localStorage 失败:', e);
+            }
+        }
+
+        // 页面加载时恢复数据
+        loadFromLocalStorage();
 
         // 连接成功
         socket.on('connect', function() {
@@ -977,13 +1330,35 @@ HTML_TEMPLATE = """
             console.log('收到投票结果推送:', data);
             showAlert('warning', '投票结果已生成');
 
-            // 存储投票结果
+            // 存储投票结果，添加轮次信息
             if (data.round) {
-                allVoteResults[data.round] = data;
+                // 确定当前是第几轮游戏
+                const gameNumber = multiRoundConfig ? (currentRoundIndex + 1) : null;
+                
+                // 添加轮次信息到结果数据
+                data.game_number = gameNumber;
+                
+                // 使用组合键存储（如果有轮次信息），否则使用回合号
+                const resultKey = gameNumber ? `${gameNumber}_${data.round}` : data.round.toString();
+                allVoteResults[resultKey] = data;
+                
+                // 也保存一个回合号到轮次的映射（用于兼容性）
+                if (gameNumber) {
+                    gameRoundMapping[data.round] = gameNumber;
+                    voteRoundMapping[data.round] = gameNumber;
+                }
+                
+                // 保存到 localStorage
+                saveToLocalStorage();
             }
 
             updateVoteRecords();
             updateGameResults();
+            
+            // 如果游戏结束且有多轮配置，检查是否需要开始下一轮
+            if (data.game_ended && multiRoundConfig) {
+                checkAndStartNextRound();
+            }
         });
 
         // 断开连接时的处理
@@ -1022,7 +1397,43 @@ HTML_TEMPLATE = """
                 });
         }
 
+        // 跟踪上一次的游戏状态，用于检测新游戏开始
+        let lastGameStatus = '';
+        let lastCurrentRound = 0;
+        let lastGameNumber = null;
+        
         function updateAllDisplay() {
+            // 记录当前轮次对应的回合号（用于描述和投票记录）
+            const currentRound = gameData.current_round || 0;
+            const gameNumber = multiRoundConfig ? (currentRoundIndex + 1) : null;
+            const currentStatus = gameData.status || '';
+            
+            // 检测新游戏开始：轮次变化（gameNumber变化）或状态从 game_end 变为 word_assigned
+            const isNewGame = (multiRoundConfig && lastGameNumber !== null && lastGameNumber !== gameNumber) ||
+                              (lastGameStatus === 'game_end' && (currentStatus === 'word_assigned' || currentStatus === 'registered'));
+            
+            if (currentRound > 0 && gameNumber) {
+                // 如果是新游戏开始，或者映射不存在，或者映射的值不对，强制更新
+                const existingGameNumber = descriptionRoundMapping[currentRound];
+                // 如果轮次变化了，或者映射不存在，或者映射的值不对，则更新
+                if (isNewGame || !existingGameNumber || (existingGameNumber !== gameNumber && multiRoundConfig)) {
+                    descriptionRoundMapping[currentRound] = gameNumber;
+                }
+                
+                const existingVoteGameNumber = voteRoundMapping[currentRound];
+                if (isNewGame || !existingVoteGameNumber || (existingVoteGameNumber !== gameNumber && multiRoundConfig)) {
+                    voteRoundMapping[currentRound] = gameNumber;
+                }
+                
+                // 保存到 localStorage
+                saveToLocalStorage();
+            }
+            
+            // 更新跟踪变量
+            lastGameStatus = currentStatus;
+            lastCurrentRound = currentRound;
+            lastGameNumber = gameNumber;
+            
             updateGameStatus();
             updatePlayers();
             updateDescriptions();
@@ -1167,6 +1578,7 @@ HTML_TEMPLATE = """
                             ${isCurrentSpeaker ? '<span class="status-badge status-speaking">发言中</span>' : ''}
                             ${hasDescribed && !isCurrentSpeaker ? '<span class="status-badge status-described">已描述</span>' : ''}
                             ${hasVoted ? '<span class="status-badge status-voted">已投票</span>' : ''}
+                            ${(gameStatus === 'word_assigned' || gameStatus === 'round_end') && (gameData.ready_groups || []).includes(name) ? '<span class="status-badge status-ready">已准备</span>' : ''}
                             <span class="status-badge ${isOnline ? 'status-online' : 'status-offline'}">
                                 ${isOnline ? '在线' : '离线'}
                             </span>
@@ -1216,16 +1628,42 @@ HTML_TEMPLATE = """
             let html = '';
             const undercoverGroup = gameData.undercover_group;
 
-            // 按回合顺序排列（最新的在前）
-            const rounds = Object.keys(descriptions).sort((a, b) => b - a);
+            // 按顺序排列（最新的在前）
+            // 首先按轮次排序，然后按回合排序
+            const descriptionEntries = Object.entries(descriptions).map(([round, roundDescriptions]) => {
+                const roundNum = parseInt(round);
+                const gameNumber = descriptionRoundMapping[roundNum] || null;
+                return {
+                    round: roundNum,
+                    gameNumber: gameNumber || 999, // 单轮游戏放到最后
+                    roundDescriptions: roundDescriptions
+                };
+            });
+            
+            // 排序：先按轮次降序，再按回合降序
+            descriptionEntries.sort((a, b) => {
+                if (a.gameNumber !== b.gameNumber) {
+                    return b.gameNumber - a.gameNumber;
+                }
+                return b.round - a.round;
+            });
 
-            rounds.forEach(round => {
-                const roundDescriptions = descriptions[round];
+            descriptionEntries.forEach(({round, gameNumber, roundDescriptions}) => {
                 if (roundDescriptions.length === 0) return;
+
+                // 确定这个回合属于第几轮
+                const displayGameNumber = gameNumber !== 999 ? gameNumber : null;
+                let titleText = '';
+                // 判断是否显示轮次：如果有轮次信息且不是默认值，就显示
+                if (displayGameNumber !== null) {
+                    titleText = `第 ${displayGameNumber} 轮第 ${round} 回合 - ${roundDescriptions.length} 个描述`;
+                } else {
+                    titleText = `第 ${round} 回合 - ${roundDescriptions.length} 个描述`;
+                }
 
                 html += `
                     <div class="round-vote-section">
-                        <div class="round-title">第 ${round} 回合 - ${roundDescriptions.length} 个描述</div>
+                        <div class="round-title">${titleText}</div>
                 `;
 
                 roundDescriptions.forEach(desc => {
@@ -1261,21 +1699,35 @@ HTML_TEMPLATE = """
 
             // 添加当前回合的投票记录
             const currentRound = gameData.current_round;
-            if (gameData.votes && gameData.votes[currentRound] && !allVotes[currentRound]) {
+            if (gameData.votes && gameData.votes[currentRound]) {
                 const currentVotes = gameData.votes[currentRound];
                 if (Object.keys(currentVotes).length > 0) {
-                    allVotes[currentRound] = {
-                        round: currentRound,
-                        vote_details: currentVotes,
-                        vote_count: {}
-                    };
+                    // 确定当前是第几轮游戏
+                    const gameNumber = multiRoundConfig ? (currentRoundIndex + 1) : null;
+                    
+                    // 记录轮次映射
+                    if (gameNumber && !voteRoundMapping[currentRound]) {
+                        voteRoundMapping[currentRound] = gameNumber;
+                        // 保存到 localStorage
+                        saveToLocalStorage();
+                    }
+                    
+                    // 使用组合键存储（如果有轮次信息），避免覆盖已有的投票结果
+                    const voteKey = gameNumber ? `${gameNumber}_${currentRound}` : currentRound.toString();
+                    if (!allVotes[voteKey]) {
+                        allVotes[voteKey] = {
+                            round: currentRound,
+                            vote_details: currentVotes,
+                            vote_count: {}
+                        };
 
-                    // 计算当前回合的票数
-                    const voteCount = {};
-                    Object.values(currentVotes).forEach(target => {
-                        voteCount[target] = (voteCount[target] || 0) + 1;
-                    });
-                    allVotes[currentRound].vote_count = voteCount;
+                        // 计算当前回合的票数
+                        const voteCount = {};
+                        Object.values(currentVotes).forEach(target => {
+                            voteCount[target] = (voteCount[target] || 0) + 1;
+                        });
+                        allVotes[voteKey].vote_count = voteCount;
+                    }
                 }
             }
 
@@ -1290,15 +1742,53 @@ HTML_TEMPLATE = """
 
             let html = '';
 
-            // 按回合顺序排列（最新的在前）
-            const rounds = Object.keys(allVotes).sort((a, b) => b - a);
+            // 按顺序排列（最新的在前）
+            // 首先按轮次排序，然后按回合排序
+            const voteEntries = Object.entries(allVotes).map(([key, voteData]) => {
+                // 解析键：如果是 "gameNumber_round" 格式，提取轮次和回合
+                const parts = key.toString().split('_');
+                let gameNumber = null;
+                let round = null;
+                
+                if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                    gameNumber = parseInt(parts[0]);
+                    round = parseInt(parts[1]);
+                } else {
+                    round = parseInt(key);
+                    gameNumber = voteRoundMapping[round] || (voteData.game_number || null);
+                }
+                
+                return {
+                    key: key,
+                    gameNumber: gameNumber || 999, // 单轮游戏放到最后
+                    round: round,
+                    voteData: voteData
+                };
+            });
+            
+            // 排序：先按轮次降序，再按回合降序
+            voteEntries.sort((a, b) => {
+                if (a.gameNumber !== b.gameNumber) {
+                    return b.gameNumber - a.gameNumber;
+                }
+                return b.round - a.round;
+            });
 
-            rounds.forEach(round => {
-                const voteData = allVotes[round];
+            voteEntries.forEach(({key, gameNumber, round, voteData}) => {
+                // 确定这个回合属于第几轮
+                const displayGameNumber = gameNumber !== 999 ? gameNumber : null;
+                
+                let titleText = '';
+                // 判断是否显示轮次：如果有轮次信息且不是默认值，就显示
+                if (displayGameNumber !== null) {
+                    titleText = `第 ${displayGameNumber} 轮第 ${round} 回合投票记录`;
+                } else {
+                    titleText = `第 ${round} 回合投票记录`;
+                }
 
                 html += `
                     <div class="round-vote-section">
-                        <div class="round-title">第 ${round} 回合投票记录</div>
+                        <div class="round-title">${titleText}</div>
                 `;
 
                 // 显示每个人的投票
@@ -1348,18 +1838,60 @@ HTML_TEMPLATE = """
 
             let html = '';
 
-            // 按回合顺序排列（最新的在前）
-            const rounds = Object.keys(allVoteResults).sort((a, b) => b - a);
+            // 按顺序排列结果（最新的在前）
+            // 首先按轮次排序，然后按回合排序
+            const results = Object.entries(allVoteResults).map(([key, result]) => {
+                // 解析键：如果是 "gameNumber_round" 格式，提取轮次和回合
+                const parts = key.split('_');
+                let gameNumber = null;
+                let round = null;
+                
+                if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                    gameNumber = parseInt(parts[0]);
+                    round = parseInt(parts[1]);
+                } else {
+                    round = parseInt(key);
+                    // 使用与投票记录相同的逻辑：优先从 voteRoundMapping 获取
+                    gameNumber = voteRoundMapping[round] || (result.game_number || null);
+                }
+                
+                return {
+                    key: key,
+                    gameNumber: gameNumber || 999, // 单轮游戏放到最后
+                    round: round,
+                    result: result
+                };
+            });
+            
+            // 排序：先按轮次降序，再按回合降序
+            results.sort((a, b) => {
+                if (a.gameNumber !== b.gameNumber) {
+                    return b.gameNumber - a.gameNumber;
+                }
+                return b.round - a.round;
+            });
+            
+            // 检查最新的游戏结果，看是否需要开始下一轮
+            let latestResultChecked = false;
 
-            rounds.forEach(round => {
-                const result = allVoteResults[round];
+            results.forEach(({key, gameNumber, round, result}) => {
                 const roundScores = result.round_scores || {};
                 const totalScores = result.total_scores || {};
+                
+                // 构建标题：使用与投票记录和描述记录相同的逻辑
+                const displayGameNumber = gameNumber !== 999 ? gameNumber : null;
+                let titleText = '';
+                // 判断是否显示轮次：如果有轮次信息且不是默认值，就显示（不管multiRoundConfig是否存在）
+                if (displayGameNumber !== null && displayGameNumber !== 999) {
+                    titleText = `第 ${displayGameNumber} 轮第 ${round} 回合结果`;
+                } else {
+                    titleText = `第 ${round} 回合结果`;
+                }
 
                 html += `
                     <div class="result-item ${result.game_ended ? 'victory' : ''}">
                         <div class="result-header">
-                            <span>第 ${round} 回合结果</span>
+                            <span>${titleText}</span>
                             <span style="color: ${result.game_ended ? (result.winner === 'undercover' ? 'var(--danger-color)' : 'var(--secondary-color)') : 'var(--warning-color)'}">
                                 ${result.game_ended ? (result.winner === 'undercover' ? '🎭 卧底胜利' : '👥 平民胜利') : '游戏继续'}
                             </span>
@@ -1452,6 +1984,12 @@ HTML_TEMPLATE = """
                             <div><strong>卧底:</strong> ${result.undercover_group || '未知'}</div>
                         </div>
                     `;
+                    
+                    // 如果这是最新的结果且游戏结束，检查是否需要开始下一轮
+                    if (!latestResultChecked && results[0] && results[0].key === key && multiRoundConfig) {
+                        latestResultChecked = true;
+                        checkAndStartNextRound();
+                    }
                 }
 
                 html += `</div></div>`;
@@ -1525,7 +2063,13 @@ HTML_TEMPLATE = """
                 case 'waiting':
                 case 'registered':
                 case 'word_assigned':
-                    displayText = '🎮 准备中...';
+                    const readyGroups = data.ready_groups || [];
+                    const activeGroups = data.active_groups || [];
+                    if (readyGroups.length > 0 && activeGroups.length > 0) {
+                        displayText = `🎮 等待准备 (${readyGroups.length}/${activeGroups.length})`;
+                    } else {
+                        displayText = '🎮 准备中...';
+                    }
                     displayClass = 'state-preparing';
                     bgColor = 'rgba(52, 152, 219, 0.1)';
                     break;
@@ -1611,6 +2155,7 @@ HTML_TEMPLATE = """
                     break;
 
                 case 'voting':
+                    // 投票阶段：只显示投票信息，不显示描述阶段的发言顺序
                     const votedCount = votedGroups.length;
                     const totalCount = activeGroups.length || describeOrder.length;
 
@@ -1624,17 +2169,26 @@ HTML_TEMPLATE = """
                     } else {
                         bgColor = 'rgba(52, 152, 219, 0.2)';
                     }
+                    // 投票阶段清除当前发言者显示
+                    document.getElementById('current-speaker-name').textContent = '--';
+                    document.getElementById('current-speaker-name').style.color = '';
                     break;
 
                 case 'round_end':
-                    if (latestResult) {
-                        if (latestResult.eliminated && latestResult.eliminated.length > 0) {
-                            displayText = `🏁 ${latestResult.eliminated.join(', ')} 被淘汰，游戏继续`;
-                        } else {
-                            displayText = '🏁 无人淘汰，游戏继续';
-                        }
+                    const readyGroupsRound = data.ready_groups || [];
+                    const activeGroupsRound = data.active_groups || [];
+                    if (readyGroupsRound.length > 0 && activeGroupsRound.length > 0) {
+                        displayText = `🏁 回合结束，等待准备 (${readyGroupsRound.length}/${activeGroupsRound.length})`;
                     } else {
-                        displayText = `🏁 第${currentRound}回合结束`;
+                        if (latestResult) {
+                            if (latestResult.eliminated && latestResult.eliminated.length > 0) {
+                                displayText = `🏁 ${latestResult.eliminated.join(', ')} 被淘汰，游戏继续`;
+                            } else {
+                                displayText = '🏁 无人淘汰，游戏继续';
+                            }
+                        } else {
+                            displayText = `🏁 第${currentRound}回合结束`;
+                        }
                     }
                     displayClass = 'state-round-end';
                     bgColor = 'rgba(155, 89, 182, 0.1)';
@@ -1671,9 +2225,14 @@ HTML_TEMPLATE = """
             displayElement.className = 'game-state-display ' + displayClass;
             displayElement.style.background = bgColor;
 
+            // 只在描述阶段更新当前发言者，其他阶段清除
             if (status === 'describing' && currentSpeaker) {
                 document.getElementById('current-speaker-name').textContent = currentSpeaker;
                 document.getElementById('current-speaker-name').style.color = 'var(--primary-color)';
+            } else if (status !== 'describing') {
+                // 非描述阶段，清除当前发言者显示（避免残留）
+                document.getElementById('current-speaker-name').textContent = '--';
+                document.getElementById('current-speaker-name').style.color = '';
             }
         }
 
@@ -1795,16 +2354,132 @@ HTML_TEMPLATE = """
             }, 3000);
         }
 
-        // 游戏控制函数
-        function startGame() {
-            const undercoverWord = document.getElementById('undercover-word').value;
-            const civilianWord = document.getElementById('civilian-word').value;
+        // 多轮游戏配置
+        function openMultiRoundModal() {
+            const modal = document.getElementById('multiRoundModal');
+            modal.classList.add('show');
+            // 初始化默认值
+            document.getElementById('round-count').value = '1';
+            generateRoundInputs();
+        }
 
-            if (!undercoverWord || !civilianWord) {
-                showAlert('danger', '请输入卧底词和平民词');
+        function closeMultiRoundModal() {
+            const modal = document.getElementById('multiRoundModal');
+            modal.classList.remove('show');
+        }
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('multiRoundModal');
+            if (event.target === modal) {
+                closeMultiRoundModal();
+            }
+        }
+
+        function generateRoundInputs() {
+            const roundCount = parseInt(document.getElementById('round-count').value) || 1;
+            const container = document.getElementById('rounds-container');
+            
+            // 限制轮数范围
+            if (roundCount < 1) {
+                document.getElementById('round-count').value = '1';
+                return;
+            }
+            if (roundCount > 10) {
+                document.getElementById('round-count').value = '10';
                 return;
             }
 
+            let html = '';
+            for (let i = 1; i <= roundCount; i++) {
+                html += `
+                    <div class="round-item">
+                        <div class="round-item-header">
+                            <i class="fas fa-circle"></i>
+                            第 ${i} 轮
+                        </div>
+                        <div class="round-item-inputs">
+                            <div class="round-item-input">
+                                <label for="undercover-word-round-${i}">
+                                    <i class="fas fa-user-secret"></i> 卧底词
+                                </label>
+                                <input type="text" id="undercover-word-round-${i}" 
+                                       placeholder="输入第${i}轮的卧底词" required>
+                            </div>
+                            <div class="round-item-input">
+                                <label for="civilian-word-round-${i}">
+                                    <i class="fas fa-users"></i> 平民词
+                                </label>
+                                <input type="text" id="civilian-word-round-${i}" 
+                                       placeholder="输入第${i}轮的平民词" required>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        function submitMultiRoundGame() {
+            const roundCount = parseInt(document.getElementById('round-count').value) || 1;
+            
+            // 收集所有轮次的词语
+            const rounds = [];
+            let isValid = true;
+            
+            for (let i = 1; i <= roundCount; i++) {
+                const undercoverWord = document.getElementById(`undercover-word-round-${i}`).value.trim();
+                const civilianWord = document.getElementById(`civilian-word-round-${i}`).value.trim();
+                
+                if (!undercoverWord || !civilianWord) {
+                    showAlert('danger', `第 ${i} 轮的卧底词和平民词不能为空`);
+                    isValid = false;
+                    break;
+                }
+                
+                rounds.push({
+                    round: i,
+                    undercover_word: undercoverWord,
+                    civilian_word: civilianWord
+                });
+            }
+            
+            if (!isValid) {
+                return;
+            }
+            
+            // 关闭模态框
+            closeMultiRoundModal();
+            
+            // 显示提示
+            showAlert('info', `已配置 ${roundCount} 轮游戏，准备开始第一轮...`);
+            
+            // 开始第一轮游戏
+            const firstRound = rounds[0];
+            startGameWithWords(firstRound.undercover_word, firstRound.civilian_word, rounds, true);
+        }
+
+        // 存储多轮配置
+        let multiRoundConfig = null;
+        let currentRoundIndex = 0; // 当前进行到第几轮（从0开始）
+        let nextRoundCheckDone = false; // 防止重复触发下一轮检查
+
+        function startGameWithWords(undercoverWord, civilianWord, roundsConfig = null, isFirstRound = false) {
+            if (roundsConfig) {
+                multiRoundConfig = roundsConfig;
+                if (isFirstRound) {
+                    currentRoundIndex = 0; // 只有第一轮才重置索引
+                    // 只有第一轮才清空历史投票结果
+                    allVoteResults = {};
+                    gameRoundMapping = {};
+                    descriptionRoundMapping = {};
+                    voteRoundMapping = {};
+                    nextRoundCheckDone = false; // 重置下一轮检查标志
+                }
+                // 保存多轮配置到 localStorage
+                saveToLocalStorage();
+            }
+            
             fetch('/api/game/start', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -1817,8 +2492,7 @@ HTML_TEMPLATE = """
             .then(resp => {
                 if (resp && resp.code === 200) {
                     showAlert('success', resp.message || '游戏已开始！');
-                    // 清空历史投票结果
-                    allVoteResults = {};
+                    nextRoundCheckDone = false; // 新游戏开始，重置检查标志
                     fetchGameState();
                 } else {
                     showAlert('danger', '错误：' + (resp ? resp.message : '后端无响应'));
@@ -1827,6 +2501,80 @@ HTML_TEMPLATE = """
             .catch(error => {
                 showAlert('danger', '请求失败：' + error);
             });
+        }
+
+        // 检查并开始下一轮游戏
+        function checkAndStartNextRound() {
+            // 防止重复触发
+            if (nextRoundCheckDone) {
+                return;
+            }
+            
+            if (!multiRoundConfig || multiRoundConfig.length === 0) {
+                return; // 没有多轮配置
+            }
+
+            // 标记为已检查，防止重复
+            nextRoundCheckDone = true;
+
+            // 检查是否还有下一轮
+            const nextRoundIndex = currentRoundIndex + 1;
+            if (nextRoundIndex >= multiRoundConfig.length) {
+                // 所有轮次都已完成
+                showAlert('info', `所有 ${multiRoundConfig.length} 轮游戏已完成！`);
+                multiRoundConfig = null; // 清空配置
+                currentRoundIndex = 0;
+                return;
+            }
+
+            // 延迟3秒后自动开始下一轮，给用户时间查看结果
+            setTimeout(() => {
+                const nextRound = multiRoundConfig[nextRoundIndex];
+                currentRoundIndex = nextRoundIndex;
+                
+                // 清除可能冲突的轮次映射（因为新游戏开始后，回合号会重置为1）
+                // 但只清除当前回合号的映射，保留其他回合号的映射
+                // 实际上，我们不应该清除，因为不同的轮次可能有相同的回合号
+                // 问题应该通过组合键来解决，或者通过检测新游戏来更新映射
+                
+                // 保存到 localStorage
+                saveToLocalStorage();
+                
+                showAlert('info', `准备开始第 ${nextRoundIndex + 1} 轮游戏...`);
+                
+                // 开始下一轮游戏（不清空历史数据）
+                startGameWithWords(
+                    nextRound.undercover_word, 
+                    nextRound.civilian_word,
+                    multiRoundConfig, // 保持多轮配置
+                    false // 不是第一轮
+                );
+            }, 3000);
+        }
+
+        // 开始单轮游戏（从输入框获取词语）
+        function startSingleGame() {
+            const undercoverWord = document.getElementById('undercover-word').value.trim();
+            const civilianWord = document.getElementById('civilian-word').value.trim();
+            
+            if (!undercoverWord || !civilianWord) {
+                showAlert('danger', '请输入卧底词和平民词');
+                return;
+            }
+            
+            // 清空多轮配置（单轮游戏不需要多轮配置）
+            multiRoundConfig = null;
+            currentRoundIndex = 0;
+            nextRoundCheckDone = false;
+            
+            // 开始单轮游戏，不传多轮配置
+            startGameWithWords(undercoverWord, civilianWord, null, false);
+        }
+
+        // 游戏控制函数（保持向后兼容，但不再使用）
+        function startGame() {
+            // 这个方法保留用于向后兼容，但实际应该使用 openMultiRoundModal()
+            openMultiRoundModal();
         }
 
         function startRound() {
@@ -1838,25 +2586,6 @@ HTML_TEMPLATE = """
             .then(resp => {
                 if (resp && resp.code === 200) {
                     showAlert('success', resp.message || '回合已开始！');
-                    fetchGameState();
-                } else {
-                    showAlert('danger', '错误：' + (resp ? resp.message : '后端无响应'));
-                }
-            })
-            .catch(error => {
-                showAlert('danger', '请求失败：' + error);
-            });
-        }
-
-        function processVoting() {
-            fetch('/api/game/voting/process', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'}
-            })
-            .then(response => response.json())
-            .then(resp => {
-                if (resp && resp.code === 200) {
-                    showAlert('success', '投票结果已处理');
                     fetchGameState();
                 } else {
                     showAlert('danger', '错误：' + (resp ? resp.message : '后端无响应'));
@@ -1879,6 +2608,18 @@ HTML_TEMPLATE = """
                         showAlert('success', resp.message || '游戏已重置');
                         // 清空所有历史数据
                         allVoteResults = {};
+                        gameRoundMapping = {};
+                        descriptionRoundMapping = {};
+                        voteRoundMapping = {};
+                        // 清空多轮配置
+                        multiRoundConfig = null;
+                        currentRoundIndex = 0;
+                        nextRoundCheckDone = false;
+                        // 清除 localStorage
+                        clearLocalStorage();
+                        // 立即更新投票记录和游戏结果的显示
+                        updateVoteRecords();
+                        updateGameResults();
                         fetchGameState();
                         // 清除输入框
                         document.getElementById('undercover-word').value = '';
@@ -1941,17 +2682,6 @@ def api_start_round():
     """代理后端API"""
     response = requests.post(
         f"{BACKEND_URL}/api/game/round/start",
-        headers=ADMIN_HEADERS,
-        timeout=2
-    )
-    return jsonify(response.json()), response.status_code
-
-
-@frontend_app.route('/api/game/voting/process', methods=['POST'])
-def api_process_voting():
-    """代理后端API"""
-    response = requests.post(
-        f"{BACKEND_URL}/api/game/voting/process",
         headers=ADMIN_HEADERS,
         timeout=2
     )

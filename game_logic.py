@@ -50,6 +50,7 @@ class GameLogic:
         self.undercover_history: Dict[str, int] = {}  # 每个组当卧底的次数
         self.total_games_played = 0  # 总游戏次数
         self.last_activity: Dict[str, datetime] = {}  # 组名 -> 最后活跃时间（用于检测在线状态）
+        self.ready_groups: List[str] = []  # 已准备好开始回合的组（每回合开始前清空）
 
     def register_group(self, group_name: str) -> bool:
         """
@@ -95,12 +96,13 @@ class GameLogic:
         # 允许至少1组开始
         if len(self.groups) < 1:
             return False
-        if self.game_status != GameStatus.REGISTERED:
+        # 允许在 REGISTERED 或 GAME_END 状态下开始新游戏（用于多轮游戏）
+        if self.game_status not in [GameStatus.REGISTERED, GameStatus.GAME_END]:
             return False
 
-        # 清空淘汰组
+        # 清空淘汰组和重置所有组的淘汰状态（用于多轮游戏）
         self.eliminated_groups = []
-
+        
         # 更新所有组的淘汰状态
         for group_name in self.groups:
             self.groups[group_name]["eliminated"] = False
@@ -146,6 +148,9 @@ class GameLogic:
             if group_name not in self.scores:
                 self.scores[group_name] = 0
 
+        # 清空准备状态
+        self.ready_groups = []
+
         self.game_status = GameStatus.WORD_ASSIGNED
         return True
 
@@ -165,6 +170,9 @@ class GameLogic:
         # 即使只有1组也可以开始回合
         if len(active_groups) < 1:
             return []
+
+        # 清空准备状态（新回合开始）
+        self.ready_groups = []
 
         # 随机排序（只包括活跃组）
         self.describe_order = active_groups.copy()
@@ -249,44 +257,85 @@ class GameLogic:
             msg += "（超时提交）"
         return True, msg
 
-    def submit_vote(self, voter_group: str, target_group: str) -> Tuple[bool, str]:
+    def submit_vote(self, voter_group: str, target_group: str) -> Tuple[bool, str, bool]:
         """
         提交投票
+        返回: (成功与否, 消息, 是否所有人已投票)
         """
         # 检查是否被淘汰
         if voter_group in self.eliminated_groups:
-            return False, "该组已被淘汰，不能投票"
+            return False, "该组已被淘汰，不能投票", False
 
         if self.game_status != GameStatus.VOTING:
-            return False, "当前不是投票阶段"
+            return False, "当前不是投票阶段", False
 
         if target_group in self.eliminated_groups:
-            return False, "被投票的组已被淘汰"
+            return False, "被投票的组已被淘汰", False
 
         if voter_group not in self.groups:
-            return False, "投票组不存在"
+            return False, "投票组不存在", False
 
         if target_group not in self.groups:
-            return False, "被投票的组不存在"
+            return False, "被投票的组不存在", False
 
         if voter_group == target_group:  # 不能投自己
-            return False, "不能投票给自己"
+            return False, "不能投票给自己", False
 
         # 检查是否已经投过票
         if voter_group in self.votes[self.current_round]:
-            return False, "已经投过票了"
+            return False, "已经投过票了", False
 
         # 检查被投票的是否是活跃组
         active_groups = [g for g in self.describe_order if g not in self.eliminated_groups]
         if target_group not in active_groups:
-            return False, "被投票的组不是活跃组"
+            return False, "被投票的组不是活跃组", False
 
         self.votes[self.current_round][voter_group] = target_group
 
         # 更新活跃时间
         self.update_activity(voter_group)
 
-        return True, "投票成功"
+        # 检查是否所有人投票完成
+        round_votes = self.votes[self.current_round]
+        active_groups = [g for g in self.describe_order if g not in self.eliminated_groups]
+        all_voted = len(round_votes) >= len(active_groups)
+
+        return True, "投票成功", all_voted
+
+    def submit_ready(self, group_name: str) -> Tuple[bool, str, bool]:
+        """
+        提交准备就绪状态
+        返回: (成功与否, 消息, 是否所有人已准备好且自动开始回合)
+        """
+        # 检查组是否存在
+        if group_name not in self.groups:
+            return False, "组不存在", False
+
+        # 检查是否被淘汰
+        if group_name in self.eliminated_groups:
+            return False, "该组已被淘汰，不能准备", False
+
+        # 只有在词语已分配或回合结束状态时才能准备
+        if self.game_status not in [GameStatus.WORD_ASSIGNED, GameStatus.ROUND_END]:
+            return False, "当前状态不能准备", False
+
+        # 检查是否已经准备过
+        if group_name in self.ready_groups:
+            return True, "已经准备过了", False
+
+        # 添加到准备列表
+        self.ready_groups.append(group_name)
+        
+        # 更新活跃时间
+        self.update_activity(group_name)
+
+        # 获取活跃组列表（未淘汰的）
+        active_groups = [g for g in self.groups.keys() if g not in self.eliminated_groups]
+        
+        # 检查是否所有人都准备好了
+        all_ready = len(self.ready_groups) >= len(active_groups)
+
+        return True, "准备成功", all_ready
 
     def process_voting_result(self) -> Dict:
         """处理投票结果，判定淘汰和游戏状态"""
@@ -378,8 +427,10 @@ class GameLogic:
                     result["message"] = f"👋 投票结果：{eliminated} 被投出，TA是平民。\n"
                     result["message"] += f"得票情况：{eliminated} 获得 {max_votes} 票\n"
                     result["message"] += "游戏继续。"
-                    # 不立即增加回合数，等待主持人点击"开始回合"
+                    # 不立即增加回合数，等待玩家准备下一轮
                     self.game_status = GameStatus.ROUND_END  # 保持当前回合状态
+                    # 清空准备状态，等待玩家准备下一轮
+                    self.ready_groups = []
 
         elif len(max_voted_groups) == 2:
             # 情况c：票数最多的组有2组，进入下一轮
@@ -391,6 +442,8 @@ class GameLogic:
             self._calculate_round_scores(result)
 
             self.game_status = GameStatus.ROUND_END
+            # 清空准备状态，等待玩家准备下一轮
+            self.ready_groups = []
 
         elif len(max_voted_groups) >= 3:
             # 情况b：得票最多有3组或更多
@@ -422,6 +475,8 @@ class GameLogic:
                 self._calculate_round_scores(result)
 
                 self.game_status = GameStatus.ROUND_END
+                # 清空准备状态，等待玩家准备下一轮
+                self.ready_groups = []
 
         # 清除倒计时
         self.phase_deadline = None
@@ -680,7 +735,8 @@ class GameLogic:
             "total_games_played": self.total_games_played,  # 总游戏次数
             "undercover_word": self.undercover_word if self.game_status == GameStatus.GAME_END else "",
             "civilian_word": self.civilian_word if self.game_status == GameStatus.GAME_END else "",
-            "online_status": self.get_online_status()  # 各组在线状态
+            "online_status": self.get_online_status(),  # 各组在线状态
+            "ready_groups": self.ready_groups  # 已准备好的组
         }
 
     def get_public_status(self) -> Dict:
@@ -768,7 +824,8 @@ class GameLogic:
             "last_vote_result": last_vote_info,
             "scores": self.scores,  # 返回得分信息
             "new_game_started": new_game_started,
-            "game_ended": self.game_status == GameStatus.GAME_END
+            "game_ended": self.game_status == GameStatus.GAME_END,
+            "ready_groups": self.ready_groups  # 已准备好的组
         }
 
     def get_current_speaker(self) -> Optional[str]:
